@@ -1,0 +1,69 @@
+# =============================================================================
+# FALLBACK ONLY — do not use this in the live demo by default.
+#
+# The whole point of Act 3 is letting the Harness plugin GENERATE this pipeline
+# from natural language, so the governance + template hooks fire on screen.
+# Keep this file only as a safety net if live generation fails in a meeting.
+#
+# This is a SKELETON. Replace every <PLACEHOLDER> with identifiers from your
+# own account (org, project, connectors, environment, infra). Better still,
+# let the agent create it and export the resulting YAML to replace this file.
+# =============================================================================
+pipeline:
+  name: products-api
+  identifier: products_api
+  projectIdentifier: <PROJECT_ID>
+  orgIdentifier: <ORG_ID>
+  stages:
+    - stage:
+        name: Build and Test
+        identifier: build_and_test
+        type: CI
+        spec:
+          cloneCodebase: true
+          execution:
+            steps:
+              - step:
+                  name: Install and Test
+                  identifier: install_and_test
+                  type: Run
+                  spec:
+                    shell: Sh
+                    command: |
+                      npm ci
+                      npm test
+              - step:
+                  name: Build and Push Image
+                  identifier: build_and_push
+                  type: BuildAndPushDockerRegistry   # or BuildAndPushECR
+                  spec:
+                    connectorRef: <REGISTRY_CONNECTOR_ID>
+                    repo: <REGISTRY>/products-api
+                    tags:
+                      - <+pipeline.sequenceId>
+    - stage:
+        name: Deploy to Staging
+        identifier: deploy_staging
+        type: Deployment
+        spec:
+          deploymentType: Kubernetes
+          service:
+            serviceRef: <SERVICE_ID>
+          environment:
+            environmentRef: staging
+            infrastructureDefinitions:
+              - identifier: <INFRA_ID>
+          execution:
+            steps:
+              - step:
+                  name: Rollout Deployment
+                  identifier: rollout
+                  type: K8sRollingDeploy
+                  spec:
+                    skipDryRun: false
+            rollbackSteps:
+              - step:
+                  name: Rollback
+                  identifier: rollback
+                  type: K8sRollingRollback
+                  spec: {}
